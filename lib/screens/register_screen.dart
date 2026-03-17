@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'Homepage_screen.dart';
+import 'main_shell.dart';
 
 class RegisterScreen extends StatelessWidget {
   const RegisterScreen({super.key});
@@ -87,9 +87,10 @@ class RegisterScreen extends StatelessWidget {
                               elevation: 0,
                             ),
                             onPressed: () {
-                              Navigator.push(
+                              Navigator.pushAndRemoveUntil(
                                 context,
-                                MaterialPageRoute(builder: (context) => const HomepageScreen()),
+                                MaterialPageRoute(builder: (context) => const MainShell()),
+                                (route) => false,
                               );
                             },
                             child: const Text("Создать аккаунт", style: TextStyle(fontWeight: FontWeight.bold)),

@@ -7,7 +7,7 @@ class OnboardingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // Светлый фон как в Figma
+      backgroundColor: Colors.white, // Чистый белый фон
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 30.0),
@@ -15,31 +15,61 @@ class OnboardingScreen extends StatelessWidget {
             children: [
               const Spacer(),
               // Текст приветствия
-              const Text("Welcome", style: TextStyle(color: Colors.black, fontSize: 40, fontWeight: FontWeight.bold)),
-              const Text("Твой путь к знаниям начинается здесь", style: TextStyle(color: Colors.grey, fontSize: 16)),
-              const Spacer(),
-              // Прямоугольник для иллюстрации
-              Container(
-                height: 300,
-                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(20)),
-                child: const Center(child: Text("ILLUSTRATION", style: TextStyle(color: Colors.black54))),
+              const Text(
+                "Welcome", 
+                style: TextStyle(
+                  color: Colors.black, 
+                  fontSize: 42, // Чуть крупнее
+                  fontWeight: FontWeight.w900, // Жирный шрифт
+                  letterSpacing: -1, // Плотное написание как в Figma
+                )
               ),
+              const SizedBox(height: 10),
+              const Text(
+                "Твой путь к знаниям начинается здесь", 
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey, fontSize: 16),
+              ),
+              const Spacer(),
+              
+              // Область для иллюстрации (островок)
+              Container(
+                height: 320,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F5F7), // Светло-серый "островок"
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: const Center(
+                  child: Icon(Icons.auto_awesome, size: 80, color: Colors.grey), // Временная иконка
+                ),
+              ),
+              
               const Spacer(flex: 2),
-              // Кнопка продолжить внизу
+              
+              // Кнопка продолжить
               SizedBox(
                 width: double.infinity,
-                height: 55,
+                height: 60,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.black,
-                    elevation: 5, // Небольшая тень
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                    elevation: 0, // Убираем стандартную тень
+                    side: const BorderSide(color: Color(0xFFEEEEEE)), // Тонкая рамка
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   ),
                   onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => RegisterScreen()));
+                    // Переход на регистрацию
+                    Navigator.push(
+                      context, 
+                      MaterialPageRoute(builder: (context) => const RegisterScreen())
+                    );
                   },
-                  child: const Text("Продолжить →", style: TextStyle(fontSize: 18)),
+                  child: const Text(
+                    "Продолжить →", 
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)
+                  ),
                 ),
               ),
             ],
