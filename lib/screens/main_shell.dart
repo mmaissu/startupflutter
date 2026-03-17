@@ -3,6 +3,9 @@ import 'Homepage_screen.dart';
 import 'account_screen.dart';
 import 'projects_screen.dart';
 import 'community_screen.dart';
+import 'settings_screen.dart';
+import 'achievements_screen.dart';
+import 'Onboarding_screen.dart';
 
 /// Главный экран с нижней навигацией: Главная, Проекты, Чат, Аккаунт
 class MainShell extends StatefulWidget {
@@ -25,6 +28,118 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: Drawer(
+        backgroundColor: const Color(0xFF1A1D2E),
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 16, 20, 24),
+                child: Text(
+                  'Меню',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              _DrawerTile(
+                icon: Icons.home_rounded,
+                label: 'Главная',
+                onTap: () {
+                  setState(() => _currentIndex = 0);
+                  Navigator.pop(context);
+                },
+              ),
+              _DrawerTile(
+                icon: Icons.folder_rounded,
+                label: 'Проекты',
+                onTap: () {
+                  setState(() => _currentIndex = 1);
+                  Navigator.pop(context);
+                },
+              ),
+              _DrawerTile(
+                icon: Icons.chat_bubble_rounded,
+                label: 'Чат',
+                onTap: () {
+                  setState(() => _currentIndex = 2);
+                  Navigator.pop(context);
+                },
+              ),
+              _DrawerTile(
+                icon: Icons.person_rounded,
+                label: 'Аккаунт',
+                onTap: () {
+                  setState(() => _currentIndex = 3);
+                  Navigator.pop(context);
+                },
+              ),
+              const Divider(color: Colors.white24, height: 24),
+              _DrawerTile(
+                icon: Icons.settings_rounded,
+                label: 'Настройки',
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                  );
+                },
+              ),
+              _DrawerTile(
+                icon: Icons.emoji_events_rounded,
+                label: 'Мои достижения',
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AchievementsScreen()),
+                  );
+                },
+              ),
+              const Divider(color: Colors.white24, height: 24),
+              _DrawerTile(
+                icon: Icons.logout_rounded,
+                label: 'Выйти из аккаунта',
+                onTap: () {
+                  Navigator.pop(context);
+                  showDialog<void>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: const Color(0xFF1E2235),
+                      title: const Text('Выйти?', style: TextStyle(color: Colors.white)),
+                      content: const Text(
+                        'Вы уверены, что хотите выйти?',
+                        style: TextStyle(color: Colors.white70),
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Отмена'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(ctx);
+                            Navigator.pushAndRemoveUntil(
+                              context,
+                              MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+                              (route) => false,
+                            );
+                          },
+                          child: const Text('Выйти', style: TextStyle(color: Colors.redAccent)),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
       body: IndexedStack(
         index: _currentIndex,
         children: _pages,
@@ -85,6 +200,30 @@ class _MainShellState extends State<MainShell> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _DrawerTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _DrawerTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.white.withValues(alpha: 0.9), size: 24),
+      title: Text(
+        label,
+        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15),
+      ),
+      onTap: onTap,
     );
   }
 }

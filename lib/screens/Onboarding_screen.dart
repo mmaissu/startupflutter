@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'register_screen.dart';
+import '../ui/app_background.dart';
+import '../widgets/glass_container.dart';
 
 class OnboardingScreen extends StatelessWidget {
   const OnboardingScreen({super.key});
@@ -7,75 +9,118 @@ class OnboardingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // Чистый белый фон
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 30.0),
-          child: Column(
-            children: [
-              const Spacer(),
-              // Текст приветствия
-              const Text(
-                "Welcome", 
-                style: TextStyle(
-                  color: Colors.black, 
-                  fontSize: 42, // Чуть крупнее
-                  fontWeight: FontWeight.w900, // Жирный шрифт
-                  letterSpacing: -1, // Плотное написание как в Figma
-                )
-              ),
-              const SizedBox(height: 10),
-              const Text(
-                "Твой путь к знаниям начинается здесь", 
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey, fontSize: 16),
-              ),
-              const Spacer(),
-              
-              // Область для иллюстрации (островок)
-              Container(
-                height: 320,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F7), // Светло-серый "островок"
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                child: const Center(
-                  child: Icon(Icons.auto_awesome, size: 80, color: Colors.grey), // Временная иконка
-                ),
-              ),
-              
-              const Spacer(flex: 2),
-              
-              // Кнопка продолжить
-              SizedBox(
-                width: double.infinity,
-                height: 60,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    elevation: 0, // Убираем стандартную тень
-                    side: const BorderSide(color: Color(0xFFEEEEEE)), // Тонкая рамка
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  ),
-                  onPressed: () {
-                    // Переход на регистрацию
-                    Navigator.push(
-                      context, 
-                      MaterialPageRoute(builder: (context) => const RegisterScreen())
-                    );
-                  },
-                  child: const Text(
-                    "Продолжить →", 
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)
+      body: AppBackground(
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 28, 24, 18),
+            child: Column(
+              children: [
+                const SizedBox(height: 8),
+                const Text(
+                  'Welcome',
+                  style: TextStyle(
+                    fontSize: 34,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: 0.2,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 10),
+                Container(
+                  height: 2,
+                  width: double.infinity,
+                  color: Colors.white.withValues(alpha: 0.45),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Твой путь к знаниям начинается здесь',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13),
+                ),
+                const SizedBox(height: 18),
+                Expanded(
+                  child: GlassContainer(
+                    padding: const EdgeInsets.all(18),
+                    borderRadius: BorderRadius.circular(18),
+                    blur: 18,
+                    fillColor: Colors.white.withValues(alpha: 0.07),
+                    borderColor: Colors.white.withValues(alpha: 0.14),
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.palette_rounded, color: Colors.white, size: 44),
+                          const SizedBox(height: 12),
+                          Text(
+                            'ILLUSTRATION 1',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.6),
+                              fontSize: 10,
+                              letterSpacing: 1.6,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _PagerDots(currentIndex: 0, count: 3),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const RegisterScreen()),
+                      );
+                    },
+                    child: const Text(
+                      'Продолжить →',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _PagerDots extends StatelessWidget {
+  final int currentIndex;
+  final int count;
+
+  const _PagerDots({required this.currentIndex, required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(count, (i) {
+        final selected = i == currentIndex;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          width: selected ? 28 : 6,
+          height: 6,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: selected ? 0.9 : 0.35),
+            borderRadius: BorderRadius.circular(50),
+          ),
+        );
+      }),
     );
   }
 }
