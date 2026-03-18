@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../ui/app_background.dart';
 import '../widgets/glass_container.dart';
+import 'Onboarding_screen.dart';
 
 /// Экран «Настройки»: пункты Настройки, Мои достижения и кнопка Выйти
 class SettingsScreen extends StatelessWidget {
@@ -95,8 +96,11 @@ class SettingsScreen extends StatelessWidget {
                             TextButton(
                               onPressed: () {
                                 Navigator.pop(ctx);
-                                Navigator.pop(context); // закрыть настройки
-                                // При полной реализации здесь: сброс сессии и pushAndRemoveUntil на Onboarding
+                                Navigator.pushAndRemoveUntil(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+                                  (route) => false,
+                                );
                               },
                               child: const Text('Выйти', style: TextStyle(color: Colors.redAccent)),
                             ),
