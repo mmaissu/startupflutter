@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'Homepage_screen.dart';
 import 'account_screen.dart';
 import 'projects_screen.dart';
@@ -121,8 +122,10 @@ class _MainShellState extends State<MainShell> {
                           child: const Text('Отмена'),
                         ),
                         TextButton(
-                          onPressed: () {
+                          onPressed: () async {
                             Navigator.pop(ctx);
+                            await FirebaseAuth.instance.signOut();
+                            if (!context.mounted) return;
                             Navigator.pushAndRemoveUntil(
                               context,
                               MaterialPageRoute(builder: (context) => const OnboardingScreen()),

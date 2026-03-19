@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../ui/app_background.dart';
 import '../widgets/glass_container.dart';
 import '../widgets/glass_icon_button.dart';
@@ -44,57 +45,70 @@ class AccountScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              GlassContainer(
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
-                borderRadius: BorderRadius.circular(16),
-                blur: 16,
-                fillColor: Colors.white.withValues(alpha: 0.08),
-                borderColor: Colors.white.withValues(alpha: 0.14),
-                child: Column(
-                  children: [
-                    Row(
+              StreamBuilder<User?>(
+                stream: FirebaseAuth.instance.authStateChanges(),
+                initialData: FirebaseAuth.instance.currentUser,
+                builder: (context, snapshot) {
+                  final user = snapshot.data ?? FirebaseAuth.instance.currentUser;
+                  final email = user?.email ?? 'Не указан';
+                  final displayName = user?.displayName ?? user?.email?.split('@').first ?? 'Пользователь';
+                  final avatarLetter = displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
+                  return GlassContainer(
+                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+                    borderRadius: BorderRadius.circular(16),
+                    blur: 16,
+                    fillColor: Colors.white.withValues(alpha: 0.08),
+                    borderColor: Colors.white.withValues(alpha: 0.14),
+                    child: Column(
                       children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF6A63FF),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Center(
-                            child: Text('A', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        Row(
                           children: [
-                            const Text(
-                              'Алексей',
-                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
+                            Container(
+                              width: 44,
+                              height: 44,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF6A63FF),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Center(
+                                child: Text(avatarLetter, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                              ),
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'alex@example.com',
-                              style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    displayName,
+                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    email,
+                                    style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        Container(height: 1, color: Colors.white.withValues(alpha: 0.14)),
+                        const SizedBox(height: 14),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: const [
+                            _StatTile(icon: Icons.track_changes_rounded, value: '12', label: 'Проектов'),
+                            _StatTile(icon: Icons.menu_book_rounded, value: '48', label: 'Уроков'),
+                            _StatTile(icon: Icons.local_fire_department_rounded, value: '7', label: 'Дней подряд'),
                           ],
                         ),
                       ],
                     ),
-                    const SizedBox(height: 14),
-                    Container(height: 1, color: Colors.white.withValues(alpha: 0.14)),
-                    const SizedBox(height: 14),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: const [
-                        _StatTile(icon: Icons.track_changes_rounded, value: '12', label: 'Проектов'),
-                        _StatTile(icon: Icons.menu_book_rounded, value: '48', label: 'Уроков'),
-                        _StatTile(icon: Icons.local_fire_department_rounded, value: '7', label: 'Дней подряд'),
-                      ],
-                    ),
-                  ],
-                ),
+                  );
+                },
               ),
               const SizedBox(height: 18),
               const Text(
@@ -155,8 +169,10 @@ class AccountScreen extends StatelessWidget {
                             child: const Text('Отмена'),
                           ),
                           TextButton(
-                            onPressed: () {
+                            onPressed: () async {
                               Navigator.pop(ctx);
+                              await FirebaseAuth.instance.signOut();
+                              if (!context.mounted) return;
                               Navigator.pushAndRemoveUntil(
                                 context,
                                 MaterialPageRoute(builder: (context) => const OnboardingScreen()),

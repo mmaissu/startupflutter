@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../ui/app_background.dart';
 import '../widgets/glass_container.dart';
 import 'Onboarding_screen.dart';
@@ -94,8 +95,10 @@ class SettingsScreen extends StatelessWidget {
                               child: const Text('Отмена'),
                             ),
                             TextButton(
-                              onPressed: () {
+                              onPressed: () async {
                                 Navigator.pop(ctx);
+                                await FirebaseAuth.instance.signOut();
+                                if (!context.mounted) return;
                                 Navigator.pushAndRemoveUntil(
                                   context,
                                   MaterialPageRoute(builder: (context) => const OnboardingScreen()),

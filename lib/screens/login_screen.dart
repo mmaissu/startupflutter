@@ -1,22 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'main_shell.dart';
-import 'login_screen.dart';
+import 'register_screen.dart';
 import '../ui/app_background.dart';
 import '../widgets/glass_container.dart';
 import '../widgets/glass_text_field.dart';
 
-class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
 
@@ -24,14 +23,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  Future<void> _register() async {
+  Future<void> _login() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
-    final confirmPassword = _confirmPasswordController.text;
 
     if (email.isEmpty) {
       setState(() => _errorMessage = 'Введите email');
@@ -41,14 +38,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       setState(() => _errorMessage = 'Введите пароль');
       return;
     }
-    if (password.length < 6) {
-      setState(() => _errorMessage = 'Пароль должен быть не менее 6 символов');
-      return;
-    }
-    if (password != confirmPassword) {
-      setState(() => _errorMessage = 'Пароли не совпадают');
-      return;
-    }
 
     setState(() {
       _isLoading = true;
@@ -56,7 +45,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -71,17 +60,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
       setState(() {
         _isLoading = false;
         _errorMessage = switch (e.code) {
-          'email-already-in-use' => 'Этот email уже занят',
+          'user-not-found' => 'Пользователь не найден',
+          'wrong-password' => 'Неверный пароль',
           'invalid-email' => 'Некорректный email',
-          'weak-password' => 'Пароль слишком простой',
-          _ => e.message ?? 'Ошибка регистрации',
+          'invalid-credential' => 'Неверный email или пароль',
+          'user-disabled' => 'Аккаунт отключён',
+          _ => e.message ?? 'Ошибка входа',
         };
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Ошибка регистрации';
+        _errorMessage = 'Ошибка входа';
       });
     }
   }
@@ -106,7 +97,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Text(
-                        'Регистрация',
+                        'Вход',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
@@ -115,7 +106,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Создайте свой аккаунт',
+                        'Войдите в свой аккаунт',
                         style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
                       ),
                       const SizedBox(height: 18),
@@ -133,13 +124,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       const SizedBox(height: 12),
                       GlassTextField(
                         controller: _passwordController,
-                        hintText: 'Создайте пароль',
-                        obscureText: true,
-                      ),
-                      const SizedBox(height: 12),
-                      GlassTextField(
-                        controller: _confirmPasswordController,
-                        hintText: 'Повторите пароль',
+                        hintText: 'Пароль',
                         obscureText: true,
                       ),
                       const SizedBox(height: 10),
@@ -161,7 +146,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             elevation: 0,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
-                          onPressed: _isLoading ? null : _register,
+                          onPressed: _isLoading ? null : _login,
                           child: _isLoading
                               ? const SizedBox(
                                   height: 20,
@@ -169,7 +154,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
                                 )
                               : const Text(
-                                  'Зарегистрироваться',
+                                  'Войти',
                                   style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                                 ),
                         ),
@@ -179,17 +164,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         onTap: () {
                           Navigator.pushReplacement(
                             context,
-                            MaterialPageRoute(builder: (context) => const LoginScreen()),
+                            MaterialPageRoute(builder: (context) => const RegisterScreen()),
                           );
                         },
-                        cursor: SystemMouseCursors.click,
                         child: Text.rich(
                           TextSpan(
-                            text: 'Уже есть аккаунт? ',
+                            text: 'Нет аккаунта? ',
                             style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 12),
                             children: const [
                               TextSpan(
-                                text: 'Войти',
+                                text: 'Зарегистрироваться',
                                 style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
                               ),
                             ],

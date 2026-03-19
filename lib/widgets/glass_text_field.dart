@@ -6,12 +6,14 @@ class GlassTextField extends StatelessWidget {
   final String hintText;
   final Widget? prefixIcon;
   final bool obscureText;
+  final TextEditingController? controller;
 
   const GlassTextField({
     super.key,
     required this.hintText,
     this.prefixIcon,
     this.obscureText = false,
+    this.controller,
   });
 
   @override
@@ -23,6 +25,7 @@ class GlassTextField extends StatelessWidget {
       fillColor: Colors.white.withValues(alpha: 0.10),
       borderColor: Colors.white.withValues(alpha: 0.14),
       child: TextField(
+        controller: controller,
         obscureText: obscureText,
         style: const TextStyle(color: Colors.white, fontSize: 14),
         decoration: InputDecoration(

@@ -1,15 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'screens/onboarding_screen.dart';
-import 'auth_test.dart';
+import 'screens/Onboarding_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  await registerUser();
+
+  // Показывать ошибки вместо белого экрана
+  ErrorWidget.builder = (details) => Material(
+        child: Container(
+          color: Colors.red.shade900,
+          padding: const EdgeInsets.all(16),
+          child: Center(
+            child: SingleChildScrollView(
+              child: Text(
+                details.toString(),
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
+            ),
+          ),
+        ),
+      );
+
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e, stack) {
+    debugPrint('Firebase init error: $e\n$stack');
+  }
   runApp(const MyApp());
 }
 
@@ -22,12 +41,9 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Edu App Design',
       theme: ThemeData(
-        // Твои макеты темные, поэтому устанавливаем темную тему по умолчанию
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF1A1D2E), // Основной темный фон
+        scaffoldBackgroundColor: const Color(0xFF1A1D2E),
         primarySwatch: Colors.blue,
-        // Можно сразу задать шрифт, если он отличается от стандартного
-        fontFamily: 'Inter', 
       ),
       home: const OnboardingScreen(),
     );
