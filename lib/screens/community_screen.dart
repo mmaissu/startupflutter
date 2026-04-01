@@ -1,11 +1,15 @@
-import 'package:flutter/material.dart';
-import '../ui/app_background.dart';
-import '../widgets/glass_container.dart';
-import '../widgets/glass_icon_button.dart';
-import '../widgets/glass_text_field.dart';
-import 'chat_conversation_screen.dart';
+import 'dart:typed_data';
 
-/// Страница "Сообщество" (Чат) — поиск и список пользователей
+import 'package:flutter/material.dart';
+import '../models/duo_project.dart';
+import '../services/duo_project_service.dart';
+import '../ui/app_background.dart';
+import '../widgets/chat_tab_with_search.dart';
+import '../widgets/glass_icon_button.dart';
+import 'create_duo_project_screen.dart';
+import 'duo_project_detail_screen.dart';
+
+/// Страница «Сообщество» (Чат) — поиск, чаты и дуо-проекты
 class CommunityScreen extends StatefulWidget {
   const CommunityScreen({super.key});
 
@@ -14,124 +18,193 @@ class CommunityScreen extends StatefulWidget {
 }
 
 class _CommunityScreenState extends State<CommunityScreen> {
-  bool _segmentChats = true; // true = Чаты, false = Дуо проекты
-  String _selectedInterest = 'Все';
-  static const List<String> _interests = ['Все', '3D', 'Blender', 'Python', 'UI/UX', 'Веб', 'Дизайн', 'Боты'];
+  bool _segmentChats = true;
+
+  List<DuoProject> _duoProjects = [];
+  bool _loadingDuo = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDuoProjects();
+  }
+
+  Future<void> _loadDuoProjects() async {
+    setState(() => _loadingDuo = true);
+    final list = await DuoProjectService.instance.loadProjects();
+    if (!mounted) return;
+    setState(() {
+      _duoProjects = list;
+      _loadingDuo = false;
+    });
+  }
+
+  List<DuoProject> get _sortedDuoProjects {
+    final list = List<DuoProject>.from(_duoProjects);
+    list.sort((a, b) {
+      if (a.isCritical != b.isCritical) return a.isCritical ? -1 : 1;
+      if (a.isUrgent != b.isUrgent) return a.isUrgent ? -1 : 1;
+      return a.deadline.compareTo(b.deadline);
+    });
+    return list;
+  }
+
+  void _openProjectDetail(DuoProject project) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => DuoProjectDetailScreen(project: project),
+      ),
+    );
+  }
+
+  Future<void> _openCreateProject() async {
+    final project = await Navigator.push<DuoProject>(
+      context,
+      MaterialPageRoute(builder: (context) => const CreateDuoProjectScreen()),
+    );
+    if (project == null || !mounted) return;
+    final synced = await DuoProjectService.instance.saveProject(project);
+    if (!mounted) return;
+    if (!synced) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Проект сохранён локально. Не удалось отправить в облако — проверьте вход и правила Firestore для duo_projects.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Проект опубликован и сохранён'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+    await _loadDuoProjects();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: AppBackground(
         child: SafeArea(
-          child: ListView(
+          child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-            children: [
-              Row(
-                children: [
-                  GlassIconButton(
-                    icon: Icons.menu_rounded,
-                    onTap: () => Scaffold.of(context).openDrawer(),
-                  ),
-                  const Expanded(
-                    child: Center(
-                      child: Text(
-                        'Чат',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 44),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _SegmentedTabs(
-                isChats: _segmentChats,
-                onChatsTap: () => setState(() => _segmentChats = true),
-                onDuoTap: () => setState(() => _segmentChats = false),
-              ),
-              const SizedBox(height: 10),
-              const GlassTextField(hintText: 'Поиск по имени, интересам или чатам...'),
-              const SizedBox(height: 14),
-              const Text(
-                'Найти по интересам',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
-              ),
-              const SizedBox(height: 10),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
                   children: [
-                    for (final label in _interests)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: GestureDetector(
-                          onTap: () => setState(() => _selectedInterest = label),
-                          child: _PillChip(label: label, selected: _selectedInterest == label),
+                    GlassIconButton(
+                      icon: Icons.menu_rounded,
+                      onTap: () => Scaffold.of(context).openDrawer(),
+                    ),
+                    const Expanded(
+                      child: Center(
+                        child: Text(
+                          'Чат',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
                         ),
                       ),
+                    ),
+                    const SizedBox(width: 44),
                   ],
                 ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Собеседники',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 94,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    _PeerAvatar(letter: 'М', name: 'Мария', tag: '3D - Blender', onTap: () => _openChat(context, 'Мария', 'М')),
-                    const SizedBox(width: 12),
-                    _PeerAvatar(letter: 'Д', name: 'Дмитрий', tag: 'Python - Боты', onTap: () => _openChat(context, 'Дмитрий', 'Д')),
-                    const SizedBox(width: 12),
-                    _PeerAvatar(letter: 'А', name: 'Анна', tag: 'UI/UX дизайн', onTap: () => _openChat(context, 'Анна', 'А')),
-                    const SizedBox(width: 12),
-                    _PeerAvatar(letter: 'И', name: 'Илья', tag: 'Веб-разработ', onTap: () => _openChat(context, 'Илья', 'И')),
-                    const SizedBox(width: 12),
-                    _PeerAvatar(letter: 'С', name: 'София', tag: 'Мобильные пр...', onTap: () => _openChat(context, 'София', 'С')),
-                  ],
+                const SizedBox(height: 12),
+                _SegmentedTabs(
+                  isChats: _segmentChats,
+                  onChatsTap: () => setState(() => _segmentChats = true),
+                  onDuoTap: () => setState(() => _segmentChats = false),
                 ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Чаты',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
-              ),
-              const SizedBox(height: 10),
-              _ChatRow(
-                letter: 'М',
-                name: 'Мария',
-                message: 'Привет! Готова скинуть референсы по моделированию',
-                time: '14:32',
-                unreadCount: 2,
-                onTap: () => _openChat(context, 'Мария', 'М'),
-              ),
-              const SizedBox(height: 10),
-              _ChatRow(
-                letter: 'Д',
-                name: 'Дмитрий',
-                message: 'Могу помочь с ботом, напиши что нужно',
-                time: 'Вчера',
-                unreadCount: 0,
-                onTap: () => _openChat(context, 'Дмитрий', 'Д'),
-              ),
-            ],
+                const SizedBox(height: 8),
+                Expanded(
+                  child: _segmentChats
+                      ? const ChatTabWithSearch()
+                      : ListView(
+                          padding: EdgeInsets.zero,
+                          children: _buildDuoProjectsContent(),
+                        ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  void _openChat(BuildContext context, String name, String letter) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => ChatConversationScreen(name: name, letter: letter),
+  List<Widget> _buildDuoProjectsContent() {
+    return [
+      const SizedBox(height: 14),
+      Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          gradient: const LinearGradient(
+            colors: [Color(0xFF6A63FF), Color(0xFF915BFF)],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF6A63FF).withValues(alpha: 0.35),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              foregroundColor: Colors.white,
+              shadowColor: Colors.transparent,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+            onPressed: _openCreateProject,
+            icon: const Icon(Icons.add_photo_alternate_rounded, size: 22),
+            label: const Text('Создать свой проект', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          ),
+        ),
       ),
-    );
+      const SizedBox(height: 8),
+      Text(
+        'Или присоединись к открытым проектам',
+        style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 12),
+      ),
+      const SizedBox(height: 14),
+      const Text(
+        'Открытые дуо-проекты',
+        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Colors.white),
+      ),
+      const SizedBox(height: 10),
+      if (_loadingDuo)
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 32),
+          child: Center(child: CircularProgressIndicator(color: Colors.white54)),
+        )
+      else if (_sortedDuoProjects.isEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 8),
+          child: Text(
+            'Пока нет открытых проектов. Нажми «Создать свой проект» — он сохранится и появится здесь после входа в аккаунт.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.65), fontSize: 13, height: 1.4),
+          ),
+        )
+      else ...[
+        for (final p in _sortedDuoProjects) ...[
+          _DuoProjectCard(
+            project: p,
+            onTap: () => _openProjectDetail(p),
+          ),
+          const SizedBox(height: 12),
+        ],
+      ],
+    ];
   }
 }
 
@@ -148,6 +221,8 @@ class _SegmentedTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const h = 40.0;
+    const r = 12.0;
     return Row(
       children: [
         Expanded(
@@ -155,22 +230,21 @@ class _SegmentedTabs extends StatelessWidget {
             color: Colors.transparent,
             child: InkWell(
               onTap: onChatsTap,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(r),
               child: Container(
-                height: 34,
+                height: h,
                 decoration: BoxDecoration(
-                  color: isChats ? Colors.white : Colors.white.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+                  color: isChats ? Colors.white : Colors.white.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(r),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
                 ),
-                child: Center(
-                  child: Text(
-                    'Чаты',
-                    style: TextStyle(
-                      color: isChats ? Colors.black : Colors.white.withValues(alpha: 0.9),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
+                alignment: Alignment.center,
+                child: Text(
+                  'Чаты',
+                  style: TextStyle(
+                    color: isChats ? Colors.black : Colors.white.withValues(alpha: 0.9),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -183,21 +257,21 @@ class _SegmentedTabs extends StatelessWidget {
             color: Colors.transparent,
             child: InkWell(
               onTap: onDuoTap,
-              borderRadius: BorderRadius.circular(10),
-              child: GlassContainer(
-                padding: EdgeInsets.zero,
-                borderRadius: BorderRadius.circular(10),
-                blur: 14,
-                fillColor: isChats ? Colors.white.withValues(alpha: 0.10) : Colors.white.withValues(alpha: 0.25),
-                borderColor: Colors.white.withValues(alpha: 0.14),
-                child: Center(
-                  child: Text(
-                    'Дуо проекты',
-                    style: TextStyle(
-                      color: isChats ? Colors.white.withValues(alpha: 0.7) : Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
+              borderRadius: BorderRadius.circular(r),
+              child: Container(
+                height: h,
+                decoration: BoxDecoration(
+                  color: !isChats ? Colors.white : Colors.white.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(r),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  'Дуо проекты',
+                  style: TextStyle(
+                    color: !isChats ? Colors.black : Colors.white.withValues(alpha: 0.9),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -209,155 +283,258 @@ class _SegmentedTabs extends StatelessWidget {
   }
 }
 
-class _PillChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-
-  const _PillChip({required this.label, this.selected = false});
-
-  @override
-  Widget build(BuildContext context) {
-    final bg = selected ? Colors.white : Colors.white.withValues(alpha: 0.12);
-    final fg = selected ? Colors.black : Colors.white.withValues(alpha: 0.85);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
-      ),
-      child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: fg)),
-    );
-  }
-}
-
-class _PeerAvatar extends StatelessWidget {
-  final String letter;
-  final String name;
-  final String tag;
+class _DuoProjectCard extends StatelessWidget {
+  final DuoProject project;
   final VoidCallback onTap;
 
-  const _PeerAvatar({
-    required this.letter,
-    required this.name,
-    required this.tag,
-    required this.onTap,
-  });
+  const _DuoProjectCard({required this.project, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          GlassContainer(
-            padding: EdgeInsets.zero,
-            borderRadius: BorderRadius.circular(24),
-            blur: 14,
-            fillColor: Colors.white.withValues(alpha: 0.10),
-            borderColor: Colors.white.withValues(alpha: 0.14),
-            child: SizedBox(
-              width: 48,
-              height: 48,
-              child: Center(
-                child: Text(
-                  letter,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(name, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Colors.white)),
-          Text(tag, style: TextStyle(fontSize: 9, color: Colors.white.withValues(alpha: 0.65))),
-        ],
-      ),
-    );
-  }
-}
+    final critical = project.isCritical;
+    final urgent = project.isUrgent;
+    final slots = project.slotsOpen;
 
-class _ChatRow extends StatelessWidget {
-  final String letter;
-  final String name;
-  final String message;
-  final String time;
-  final int unreadCount;
-  final VoidCallback onTap;
-
-  const _ChatRow({
-    required this.letter,
-    required this.name,
-    required this.message,
-    required this.time,
-    required this.unreadCount,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: GlassContainer(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-      borderRadius: BorderRadius.circular(16),
-      blur: 16,
-      fillColor: Colors.white.withValues(alpha: 0.08),
-      borderColor: Colors.white.withValues(alpha: 0.14),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), shape: BoxShape.circle),
-            child: Center(
-              child: Text(letter, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              width: critical ? 2 : 1,
+              color: critical
+                  ? const Color(0xFFE85D04).withValues(alpha: 0.95)
+                  : urgent
+                      ? const Color(0xFFFFB020).withValues(alpha: 0.55)
+                      : Colors.white.withValues(alpha: 0.12),
             ),
+            boxShadow: critical
+                ? [
+                    BoxShadow(
+                      color: const Color(0xFFE85D04).withValues(alpha: 0.25),
+                      blurRadius: 18,
+                      offset: const Offset(0, 6),
+                    ),
+                  ]
+                : null,
           ),
-          const SizedBox(width: 12),
-          Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(17),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13)),
-                const SizedBox(height: 2),
-                Text(
-                  message,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 11),
+                SizedBox(
+                  height: 112,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _CardCover(bytes: project.coverImageBytes, critical: critical),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              const Color(0xFF1A1D2E).withValues(alpha: 0.85),
+                            ],
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 12,
+                        right: 12,
+                        bottom: 10,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                project.title,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  shadows: [Shadow(blurRadius: 8, color: Colors.black54)],
+                                ),
+                              ),
+                            ),
+                            if (critical || urgent) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: critical ? const Color(0xFFE85D04) : const Color(0xFFFFB020),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Text(
+                                  critical ? 'Срочно' : 'Скоро срок',
+                                  style: const TextStyle(
+                                    color: Colors.black87,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        project.type,
+                        style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.6), fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        project.shortDescription,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.85), height: 1.35),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          _MiniAvatarRow(names: project.participantNames.take(4).toList()),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '${project.currentMemberCount}/${project.teamSizeTarget} в команде',
+                              style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.7)),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(Icons.event_rounded, size: 14, color: Colors.white.withValues(alpha: 0.55)),
+                          const SizedBox(width: 4),
+                          Text(
+                            project.deadlineLabel,
+                            style: TextStyle(fontSize: 11, color: Colors.white.withValues(alpha: 0.65)),
+                          ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: slots == 0
+                                  ? const Color(0xFF2DD4BF).withValues(alpha: 0.2)
+                                  : const Color(0xFF6A63FF).withValues(alpha: 0.25),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              slots == 0
+                                  ? 'Команда набрана'
+                                  : 'Нужно ещё $slots ${_slotsWord(slots)}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: slots == 0 ? const Color(0xFF2DD4BF) : Colors.white,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(Icons.chevron_right_rounded, size: 20, color: Colors.white.withValues(alpha: 0.45)),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(time, style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 10)),
-              const SizedBox(height: 6),
-              if (unreadCount > 0)
-                Container(
-                  width: 18,
-                  height: 18,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF915BFF),
-                    borderRadius: BorderRadius.circular(9),
-                  ),
-                  child: Center(
-                    child: Text(
-                      '$unreadCount',
-                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ],
-      ),
         ),
+      ),
+    );
+  }
+
+  static String _slotsWord(int n) {
+    final m = n % 10;
+    final m100 = n % 100;
+    if (m100 >= 11 && m100 <= 14) return 'чел.';
+    if (m == 1) return 'чел.';
+    if (m >= 2 && m <= 4) return 'чел.';
+    return 'чел.';
+  }
+}
+
+class _CardCover extends StatelessWidget {
+  final Uint8List? bytes;
+  final bool critical;
+
+  const _CardCover({required this.bytes, required this.critical});
+
+  @override
+  Widget build(BuildContext context) {
+    if (bytes != null) {
+      return Image.memory(bytes!, fit: BoxFit.cover);
+    }
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: critical
+              ? [const Color(0xFF8B2500), const Color(0xFF4A0E4E)]
+              : [const Color(0xFF3D2B8C), const Color(0xFF6A2F5B)],
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniAvatarRow extends StatelessWidget {
+  final List<String> names;
+
+  const _MiniAvatarRow({required this.names});
+
+  static const _avatarColors = [
+    Color(0xFF6A63FF),
+    Color(0xFF915BFF),
+    Color(0xFF2DD4BF),
+    Color(0xFFFF8A3D),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final shown = names.take(4).toList();
+    return SizedBox(
+      height: 28,
+      width: 26 + (shown.length > 1 ? (shown.length - 1) * 16.0 : 0),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          for (var i = 0; i < shown.length; i++)
+            Positioned(
+              left: i * 16.0,
+              child: Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _avatarColors[i % _avatarColors.length],
+                  border: Border.all(color: const Color(0xFF1A1D2E), width: 2),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  shown[i].isNotEmpty ? shown[i][0].toUpperCase() : '?',
+                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

@@ -16,6 +16,32 @@ class _HomepageScreenState extends State<HomepageScreen> {
   String _selectedFilter = 'Все';
   static const List<String> _filters = ['Все', 'Blender', 'Python', 'Design'];
 
+  void _onFilterTap(String label) {
+    setState(() => _selectedFilter = label);
+    if (label == 'Все') return;
+
+    final CourseDetailScreen? screen = switch (label) {
+      'Blender' => const CourseDetailScreen(
+          courseTitle: '3D моделирование',
+          courseId: 'blender_3d',
+        ),
+      'Python' => const CourseDetailScreen(
+          courseTitle: 'Основы Python',
+          courseId: 'python_basics',
+        ),
+      'Design' => const CourseDetailScreen(
+          courseTitle: 'UI/UX дизайн',
+          courseId: 'ui_ux',
+        ),
+      _ => null,
+    };
+    if (screen == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => screen),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -55,7 +81,7 @@ class _HomepageScreenState extends State<HomepageScreen> {
                       Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: GestureDetector(
-                          onTap: () => setState(() => _selectedFilter = label),
+                          onTap: () => _onFilterTap(label),
                           child: _PillChip(label: label, selected: _selectedFilter == label),
                         ),
                       ),

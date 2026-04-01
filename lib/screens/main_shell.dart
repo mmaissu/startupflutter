@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/user_directory_service.dart';
 import 'Homepage_screen.dart';
 import 'account_screen.dart';
 import 'projects_screen.dart';
@@ -19,12 +20,25 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int _currentIndex = 0;
 
-  static const List<Widget> _pages = [
-    HomepageScreen(),
-    ProjectsScreen(),
-    CommunityScreen(),
-    AccountScreen(),
+  final GlobalKey<ProjectsScreenState> _projectsScreenKey = GlobalKey<ProjectsScreenState>();
+
+  late final List<Widget> _pages = [
+    const HomepageScreen(),
+    ProjectsScreen(key: _projectsScreenKey),
+    const CommunityScreen(),
+    const AccountScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final u = FirebaseAuth.instance.currentUser;
+      if (u != null) {
+        UserDirectoryService.instance.ensurePublicProfile(u);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -179,7 +193,12 @@ class _MainShellState extends State<MainShell> {
   Widget _navItem(int index, IconData icon, String label) {
     final isSelected = _currentIndex == index;
     return InkWell(
-      onTap: () => setState(() => _currentIndex = index),
+      onTap: () {
+        setState(() => _currentIndex = index);
+        if (index == 1) {
+          _projectsScreenKey.currentState?.refreshProgress();
+        }
+      },
       borderRadius: BorderRadius.circular(12),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

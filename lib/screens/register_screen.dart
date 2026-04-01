@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/user_directory_service.dart';
 import 'main_shell.dart';
 import 'login_screen.dart';
 import '../ui/app_background.dart';
@@ -56,10 +57,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      await FirebaseAuth.instance.createUserWithEmailAndPassword(
+      final cred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
+      if (cred.user != null) {
+        await UserDirectoryService.instance.ensurePublicProfile(cred.user!);
+      }
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
@@ -182,7 +186,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             MaterialPageRoute(builder: (context) => const LoginScreen()),
                           );
                         },
-                        cursor: SystemMouseCursors.click,
                         child: Text.rich(
                           TextSpan(
                             text: 'Уже есть аккаунт? ',

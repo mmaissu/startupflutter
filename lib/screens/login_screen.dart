@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/user_directory_service.dart';
 import 'main_shell.dart';
 import 'register_screen.dart';
 import '../ui/app_background.dart';
@@ -45,10 +46,13 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
+      if (cred.user != null) {
+        await UserDirectoryService.instance.ensurePublicProfile(cred.user!);
+      }
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
