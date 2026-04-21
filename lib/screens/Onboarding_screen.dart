@@ -16,15 +16,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   static const List<_OnboardSlide> _slides = [
     _OnboardSlide(
-      assetPath: 'assets/onboarding/onboard_1_design.png',
+      assetPath: 'assets/onboarding/Снимок экрана 2026-04-21 202645.png',
       caption: 'Курсы по дизайну и творчеству',
     ),
     _OnboardSlide(
-      assetPath: 'assets/onboarding/onboard_2_code.png',
+      assetPath: 'assets/onboarding/Снимок экрана 2026-04-21 203357.png',
       caption: 'Программирование и практика',
     ),
     _OnboardSlide(
-      assetPath: 'assets/onboarding/onboard_3_rocket.png',
+      assetPath: 'assets/onboarding/Снимок экрана 2026-04-21 203653.png',
       caption: 'Прокачивай навыки вместе с сообществом',
     ),
   ];
