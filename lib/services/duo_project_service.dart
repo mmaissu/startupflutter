@@ -20,6 +20,48 @@ class DuoProjectService {
 
   String? get _uid => FirebaseAuth.instance.currentUser?.uid;
 
+  Future<bool> updateProject(String projectId, Map<String, dynamic> updates) async {
+    final uid = _uid;
+    if (uid == null) return false;
+    try {
+      await _firestore.collection('duo_projects').doc(projectId).update({
+        ...updates,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return true;
+    } catch (e, st) {
+      debugPrint('DuoProjectService.updateProject: $e\n$st');
+      return false;
+    }
+  }
+
+  Future<bool> deleteProject(String projectId) async {
+    final uid = _uid;
+    if (uid == null) return false;
+    try {
+      await _firestore.collection('duo_projects').doc(projectId).delete();
+      return true;
+    } catch (e, st) {
+      debugPrint('DuoProjectService.deleteProject: $e\n$st');
+      return false;
+    }
+  }
+
+  Future<bool> removeMember(String projectId, String memberUid) async {
+    final uid = _uid;
+    if (uid == null) return false;
+    try {
+      await _firestore.collection('duo_projects').doc(projectId).update({
+        'members': FieldValue.arrayRemove([memberUid]),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      return true;
+    } catch (e, st) {
+      debugPrint('DuoProjectService.removeMember: $e\n$st');
+      return false;
+    }
+  }
+
   /// Присоединиться к дуо-проекту: добавляет uid в массив members.
   Future<bool> joinProject(String projectId) async {
     final uid = _uid;

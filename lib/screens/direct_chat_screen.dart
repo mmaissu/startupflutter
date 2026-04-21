@@ -48,6 +48,19 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
         .snapshots();
   }
 
+  Future<void> _ensureChatMeta() async {
+    final me = FirebaseAuth.instance.currentUser?.uid;
+    if (me == null) return;
+    final ids = [me, widget.peerUid]..sort();
+    await FirebaseFirestore.instance.collection('directChats').doc(_chatId).set(
+      {
+        'participantIds': ids,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+  }
+
   Future<void> _updateChatDocAfterSend(String text) async {
     final me = FirebaseAuth.instance.currentUser?.uid;
     if (me == null) return;
@@ -75,6 +88,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       return;
     }
     try {
+      await _ensureChatMeta();
       await FirebaseFirestore.instance
           .collection('directChats')
           .doc(_chatId)
@@ -89,7 +103,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Не удалось отправить: $e')),
+        SnackBar(content: Text('Не удалось отправить: $e'), behavior: SnackBarBehavior.floating),
       );
     }
   }

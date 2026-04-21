@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../course_lessons_catalog.dart';
 import '../models/lesson_models.dart';
 import '../services/course_progress_service.dart';
 import 'course_detail_screen.dart';
+import 'duo_project_detail_screen.dart';
+import '../models/duo_project.dart';
 
 /// Страница «Мои проекты»: прогресс синхронизирован с курсами и Firestore.
 class ProjectsScreen extends StatefulWidget {
@@ -91,6 +95,12 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
+                  const SizedBox(height: 4),
+                  Text(
+                    'Курсы',
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 10),
                   for (var i = 0; i < _entries.length; i++) ...[
                     if (i > 0) const SizedBox(height: 12),
                     _ProjectCard(
@@ -99,6 +109,13 @@ class ProjectsScreenState extends State<ProjectsScreen> {
                       onTap: () => _openCourse(_entries[i]),
                     ),
                   ],
+                  const SizedBox(height: 22),
+                  Text(
+                    'Дуо проекты (где вы участник)',
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 16, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 10),
+                  _MyDuoProjectsSection(),
                 ],
               ),
             ),
@@ -232,3 +249,134 @@ class _ProjectCard extends StatelessWidget {
 }
 
 enum ProjectStatus { inProgress, completed }
+
+class _MyDuoProjectsSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      return Text(
+        'Войдите в аккаунт, чтобы видеть дуо‑проекты, где вы участник.',
+        style: TextStyle(color: Colors.white.withValues(alpha: 0.6), height: 1.35),
+      );
+    }
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance
+          .collection('duo_projects')
+          .where('members', arrayContains: uid)
+          .snapshots(),
+      builder: (context, snap) {
+        if (snap.hasError) {
+          return Text(
+            'Ошибка загрузки дуо‑проектов: ${snap.error}',
+            style: const TextStyle(color: Colors.white70),
+          );
+        }
+        if (snap.connectionState == ConnectionState.waiting && snap.data == null) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 20),
+            child: Center(child: CircularProgressIndicator(color: Colors.white54)),
+          );
+        }
+        final docs = snap.data?.docs ?? [];
+        if (docs.isEmpty) {
+          return Text(
+            'Пока вы не участник ни одного дуо‑проекта. Откройте проект в «Чате → Дуо проекты» и нажмите «Присоединиться».',
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.6), height: 1.35),
+          );
+        }
+
+        final list = docs
+            .map((d) => DuoProject.fromFirestoreDocument(d.id, d.data()))
+            .toList()
+          ..sort((a, b) => b.deadline.compareTo(a.deadline));
+
+        return Column(
+          children: [
+            for (var i = 0; i < list.length; i++) ...[
+              if (i > 0) const SizedBox(height: 12),
+              _DuoMiniCard(
+                project: list[i],
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => DuoProjectDetailScreen(projectId: list[i].id),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _DuoMiniCard extends StatelessWidget {
+  final DuoProject project;
+  final VoidCallback onTap;
+
+  const _DuoMiniCard({required this.project, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6A63FF).withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.groups_rounded, color: Colors.white, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      project.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      project.type,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 11),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${project.currentMemberCount}/${project.teamSizeTarget} · ${project.deadlineLabel}',
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: Colors.white.withValues(alpha: 0.5), size: 22),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

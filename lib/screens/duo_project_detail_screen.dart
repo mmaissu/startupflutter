@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 
 import '../models/duo_project.dart';
 import '../services/duo_project_service.dart';
+import 'duo_project_chat_screen.dart';
+import 'edit_duo_project_screen.dart';
 
 class DuoProjectDetailScreen extends StatelessWidget {
   final String projectId;
@@ -67,6 +69,7 @@ class DuoProjectDetailScreen extends StatelessWidget {
         final members = project.memberUids;
         final isMember = uid != null && members.contains(uid);
         final canJoin = uid != null && !isMember && slots > 0;
+        final isCreator = uid != null && project.creatorUid != null && uid == project.creatorUid;
 
         return Scaffold(
           backgroundColor: const Color(0xFF12151F),
@@ -80,6 +83,21 @@ class DuoProjectDetailScreen extends StatelessWidget {
                   icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
                   onPressed: () => Navigator.pop(context),
                 ),
+                actions: [
+                  if (isCreator)
+                    IconButton(
+                      tooltip: 'Редактировать',
+                      icon: const Icon(Icons.edit_rounded, color: Colors.white),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => EditDuoProjectScreen(project: project),
+                          ),
+                        );
+                      },
+                    ),
+                ],
                 flexibleSpace: FlexibleSpaceBar(
                   background: Stack(
                     fit: StackFit.expand,
@@ -169,6 +187,31 @@ class DuoProjectDetailScreen extends StatelessWidget {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 50,
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: BorderSide(color: Colors.white.withValues(alpha: 0.18)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => DuoProjectChatScreen(
+                                  projectId: project.id,
+                                  projectTitle: project.title,
+                                ),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.chat_bubble_rounded, size: 18),
+                          label: const Text('Чат проекта', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+                        ),
+                      ),
                       const SizedBox(height: 22),
                       _SectionTitle('Команда'),
                       const SizedBox(height: 12),
@@ -187,7 +230,12 @@ class DuoProjectDetailScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 14),
-                      _MembersWrap(memberUids: project.memberUids),
+                      _MembersWrap(
+                        projectId: project.id,
+                        memberUids: project.memberUids,
+                        isCreator: isCreator,
+                        creatorUid: project.creatorUid,
+                      ),
                       const SizedBox(height: 28),
                       _SectionTitle('О проекте'),
                       const SizedBox(height: 10),
@@ -237,9 +285,17 @@ class DuoProjectDetailScreen extends StatelessWidget {
 }
 
 class _MembersWrap extends StatelessWidget {
+  final String projectId;
   final List<String> memberUids;
+  final bool isCreator;
+  final String? creatorUid;
 
-  const _MembersWrap({required this.memberUids});
+  const _MembersWrap({
+    required this.projectId,
+    required this.memberUids,
+    required this.isCreator,
+    required this.creatorUid,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -255,14 +311,91 @@ class _MembersWrap extends StatelessWidget {
       runSpacing: 8,
       children: [
         for (final uid in memberUids)
-          StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-            stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
-            builder: (context, snap) {
-              final name = snap.data?.data()?['displayName'] as String?;
-              return _ParticipantChip(name: (name == null || name.isEmpty) ? uid : name);
-            },
+          _MemberChip(
+            projectId: projectId,
+            uid: uid,
+            isCreator: isCreator,
+            creatorUid: creatorUid,
           ),
       ],
+    );
+  }
+}
+
+class _MemberChip extends StatelessWidget {
+  final String projectId;
+  final String uid;
+  final bool isCreator;
+  final String? creatorUid;
+
+  const _MemberChip({
+    required this.projectId,
+    required this.uid,
+    required this.isCreator,
+    required this.creatorUid,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final canRemove = isCreator && uid != (creatorUid ?? '');
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+      builder: (context, snap) {
+        final name = snap.data?.data()?['displayName'] as String?;
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            _ParticipantChip(name: (name == null || name.isEmpty) ? uid : name),
+            if (canRemove)
+              Positioned(
+                top: -6,
+                right: -6,
+                child: InkWell(
+                  onTap: () async {
+                    final yes = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        backgroundColor: const Color(0xFF1E2235),
+                        title: const Text('Удалить участника?', style: TextStyle(color: Colors.white)),
+                        content: const Text(
+                          'Участник будет удалён из проекта.',
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Отмена')),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text('Удалить', style: TextStyle(color: Colors.redAccent)),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (yes != true) return;
+                    final ok = await DuoProjectService.instance.removeMember(projectId, uid);
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(ok ? 'Участник удалён' : 'Не удалось удалить участника'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    width: 18,
+                    height: 18,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF87171),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFF12151F), width: 2),
+                    ),
+                    child: const Icon(Icons.close_rounded, size: 12, color: Colors.black87),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }
