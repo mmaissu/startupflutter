@@ -1,120 +1,208 @@
 import 'dart:typed_data';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../models/duo_project.dart';
+import '../services/duo_project_service.dart';
 
 class DuoProjectDetailScreen extends StatelessWidget {
-  final DuoProject project;
+  final String projectId;
 
-  const DuoProjectDetailScreen({super.key, required this.project});
+  const DuoProjectDetailScreen({super.key, required this.projectId});
 
   @override
   Widget build(BuildContext context) {
-    final urgent = project.isUrgent;
-    final critical = project.isCritical;
-    final slots = project.slotsOpen;
-
-    return Scaffold(
-      backgroundColor: const Color(0xFF12151F),
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 220,
-            pinned: true,
-            backgroundColor: const Color(0xFF1A1D2E),
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
-              onPressed: () => Navigator.pop(context),
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseFirestore.instance.collection('duo_projects').doc(projectId).snapshots(),
+      builder: (context, snap) {
+        if (snap.hasError) {
+          return Scaffold(
+            backgroundColor: const Color(0xFF12151F),
+            appBar: AppBar(
+              backgroundColor: const Color(0xFF1A1D2E),
+              foregroundColor: Colors.white,
+              title: const Text('Проект'),
             ),
-            flexibleSpace: FlexibleSpaceBar(
-              background: Stack(
-                fit: StackFit.expand,
-                children: [
-                  _buildHeaderImage(project.coverImageBytes, critical),
-                  Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          const Color(0xFF12151F).withValues(alpha: 0.3),
-                          const Color(0xFF12151F),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(
+                  'Ошибка загрузки проекта: ${snap.error}',
+                  style: const TextStyle(color: Colors.white70),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          );
+        }
+        if (snap.connectionState == ConnectionState.waiting && snap.data == null) {
+          return const Scaffold(
+            backgroundColor: Color(0xFF12151F),
+            body: Center(child: CircularProgressIndicator(color: Colors.white54)),
+          );
+        }
+        final data = snap.data?.data();
+        if (data == null) {
+          return Scaffold(
+            backgroundColor: const Color(0xFF12151F),
+            appBar: AppBar(
+              backgroundColor: const Color(0xFF1A1D2E),
+              foregroundColor: Colors.white,
+              title: const Text('Проект'),
+            ),
+            body: const Center(
+              child: Text('Проект не найден', style: TextStyle(color: Colors.white70)),
+            ),
+          );
+        }
+
+        final project = DuoProject.fromFirestoreDocument(projectId, data);
+        final urgent = project.isUrgent;
+        final critical = project.isCritical;
+        final slots = project.slotsOpen;
+
+        final uid = FirebaseAuth.instance.currentUser?.uid;
+        final members = project.memberUids;
+        final isMember = uid != null && members.contains(uid);
+        final canJoin = uid != null && !isMember && slots > 0;
+
+        return Scaffold(
+          backgroundColor: const Color(0xFF12151F),
+          body: CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                expandedHeight: 220,
+                pinned: true,
+                backgroundColor: const Color(0xFF1A1D2E),
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      _buildHeaderImage(project.coverImageBytes, critical),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.transparent,
+                              const Color(0xFF12151F).withValues(alpha: 0.3),
+                              const Color(0xFF12151F),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (critical || urgent)
+                        Positioned(
+                          top: MediaQuery.paddingOf(context).top + 8,
+                          right: 16,
+                          child: _UrgentChip(critical: critical),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        project.title,
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white, height: 1.2),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _Tag(icon: Icons.category_rounded, label: project.type),
+                          _Tag(icon: Icons.event_rounded, label: project.deadlineLabel, accent: urgent),
                         ],
                       ),
-                    ),
-                  ),
-                  if (critical || urgent)
-                    Positioned(
-                      top: MediaQuery.paddingOf(context).top + 8,
-                      right: 16,
-                      child: _UrgentChip(critical: critical),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    project.title,
-                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white, height: 1.2),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _Tag(icon: Icons.category_rounded, label: project.type),
-                      _Tag(icon: Icons.event_rounded, label: project.deadlineLabel, accent: urgent),
+                      const SizedBox(height: 18),
+                      SizedBox(
+                        height: 50,
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: canJoin ? Colors.white : Colors.white.withValues(alpha: 0.18),
+                            foregroundColor: canJoin ? Colors.black : Colors.white70,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          onPressed: canJoin
+                              ? () async {
+                                  final ok = await DuoProjectService.instance.joinProject(project.id);
+                                  if (!context.mounted) return;
+                                  if (ok) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Вы успешно присоединились к проекту'),
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Не удалось присоединиться. Проверьте вход и правила Firestore.'),
+                                        behavior: SnackBarBehavior.floating,
+                                      ),
+                                    );
+                                  }
+                                }
+                              : null,
+                          child: Text(
+                            uid == null
+                                ? 'Войдите, чтобы присоединиться'
+                                : isMember
+                                    ? 'Вы участник'
+                                    : (slots == 0 ? 'Команда набрана' : 'Присоединиться к проекту'),
+                            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+                      _SectionTitle('Команда'),
+                      const SizedBox(height: 12),
+                      _TeamProgressBar(
+                        current: project.currentMemberCount,
+                        target: project.teamSizeTarget,
+                        slotsOpen: slots,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        slots == 0 ? 'Команда набрана' : 'Нужно ещё $slots ${slots == 1 ? 'человек' : _peopleWord(slots)}',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: slots == 0 ? const Color(0xFF2DD4BF) : Colors.white.withValues(alpha: 0.92),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      _MembersWrap(memberUids: project.memberUids),
+                      const SizedBox(height: 28),
+                      _SectionTitle('О проекте'),
+                      const SizedBox(height: 10),
+                      Text(
+                        project.fullDescription,
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.88), fontSize: 15, height: 1.5),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 22),
-                  _SectionTitle('Команда'),
-                  const SizedBox(height: 12),
-                  _TeamProgressBar(
-                    current: project.currentMemberCount,
-                    target: project.teamSizeTarget,
-                    slotsOpen: slots,
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    slots == 0
-                        ? 'Команда набрана'
-                        : 'Нужно ещё $slots ${slots == 1 ? 'человек' : _peopleWord(slots)}',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: slots == 0 ? const Color(0xFF2DD4BF) : Colors.white.withValues(alpha: 0.92),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final name in project.participantNames)
-                        _ParticipantChip(name: name),
-                    ],
-                  ),
-                  const SizedBox(height: 28),
-                  _SectionTitle('О проекте'),
-                  const SizedBox(height: 10),
-                  Text(
-                    project.fullDescription,
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.88), fontSize: 15, height: 1.5),
-                  ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -144,6 +232,37 @@ class DuoProjectDetailScreen extends StatelessWidget {
       child: Center(
         child: Icon(Icons.groups_rounded, size: 72, color: Colors.white.withValues(alpha: 0.35)),
       ),
+    );
+  }
+}
+
+class _MembersWrap extends StatelessWidget {
+  final List<String> memberUids;
+
+  const _MembersWrap({required this.memberUids});
+
+  @override
+  Widget build(BuildContext context) {
+    if (memberUids.isEmpty) {
+      return Text(
+        'Участников пока нет',
+        style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13),
+      );
+    }
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final uid in memberUids)
+          StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+            builder: (context, snap) {
+              final name = snap.data?.data()?['displayName'] as String?;
+              return _ParticipantChip(name: (name == null || name.isEmpty) ? uid : name);
+            },
+          ),
+      ],
     );
   }
 }

@@ -85,6 +85,7 @@ class _CreateDuoProjectScreenState extends State<CreateDuoProjectScreen> {
       fullDescription: full,
       deadline: _deadline,
       teamSizeTarget: _teamSize.round().clamp(2, 20),
+      memberUids: uid == null ? const [] : [uid],
       participantNames: const ['Вы'],
       coverImageBytes: _coverBytes,
       creatorUid: uid,

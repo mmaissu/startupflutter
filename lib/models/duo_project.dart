@@ -17,6 +17,9 @@ class DuoProject {
   /// Сколько человек нужно в команде всего
   final int teamSizeTarget;
 
+  /// Участники проекта (uid). Это поле используется для присоединения через Firestore.
+  final List<String> memberUids;
+
   /// Уже в команде (имена для отображения)
   final List<String> participantNames;
 
@@ -34,6 +37,7 @@ class DuoProject {
     required this.fullDescription,
     required this.deadline,
     required this.teamSizeTarget,
+    required this.memberUids,
     required this.participantNames,
     this.coverImageBytes,
     this.creatorUid,
@@ -48,6 +52,7 @@ class DuoProject {
       'fullDescription': fullDescription,
       'deadline': Timestamp.fromDate(deadline),
       'teamSizeTarget': teamSizeTarget,
+      'members': memberUids,
       'participantNames': participantNames,
       if (creatorUid != null && creatorUid!.isNotEmpty) 'creatorUid': creatorUid,
     };
@@ -69,6 +74,9 @@ class DuoProject {
         ? namesRaw.map((e) => e.toString()).toList()
         : <String>['Участник'];
 
+    final membersRaw = data['members'];
+    final members = membersRaw is List ? membersRaw.map((e) => e.toString()).toList() : <String>[];
+
     Uint8List? cover;
     final b64 = data['coverImageBase64'];
     if (b64 is String && b64.isNotEmpty) {
@@ -85,17 +93,18 @@ class DuoProject {
       fullDescription: data['fullDescription'] as String? ?? '',
       deadline: deadline,
       teamSizeTarget: (data['teamSizeTarget'] as num?)?.toInt() ?? 2,
+      memberUids: members,
       participantNames: names,
       coverImageBytes: cover,
       creatorUid: data['creatorUid'] as String?,
     );
   }
 
-  int get currentMemberCount => participantNames.length;
+  int get currentMemberCount => memberUids.isNotEmpty ? memberUids.length : participantNames.length;
 
   /// Сколько мест осталось набрать
   int get slotsOpen {
-    final n = teamSizeTarget - participantNames.length;
+    final n = teamSizeTarget - currentMemberCount;
     return n < 0 ? 0 : n;
   }
 

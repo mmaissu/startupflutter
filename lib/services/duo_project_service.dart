@@ -20,6 +20,25 @@ class DuoProjectService {
 
   String? get _uid => FirebaseAuth.instance.currentUser?.uid;
 
+  /// Присоединиться к дуо-проекту: добавляет uid в массив members.
+  Future<bool> joinProject(String projectId) async {
+    final uid = _uid;
+    if (uid == null) return false;
+    try {
+      await _firestore.collection('duo_projects').doc(projectId).set(
+        {
+          'members': FieldValue.arrayUnion([uid]),
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+      return true;
+    } catch (e, st) {
+      debugPrint('DuoProjectService.joinProject: $e\n$st');
+      return false;
+    }
+  }
+
   Future<List<DuoProject>> loadProjects() async {
     final localList = _localFallback.values.toList();
     if (_uid == null) {
